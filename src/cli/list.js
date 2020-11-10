@@ -1,6 +1,7 @@
 'use strict';
 require('colors');
 var links = require('../links.js');
+var prettify = require('../pretty').makePretty;
 
 exports.command = 'list';
 
@@ -16,7 +17,7 @@ exports.handler = function () {
 	console.log('Links:');
 
 	for (var linkId in links.data) {
-		var link = links.data[linkId];
+		var link = prettify(links.data[linkId]);
 		var status = link.enabled ? 'enabled'.green : 'disabled'.red;
 		console.log(`${status} (${linkId}) ${link.src} -> ${link.dest}`);
 		found = true;

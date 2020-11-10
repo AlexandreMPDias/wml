@@ -6,6 +6,7 @@ var untildify = require('untildify');
 var inquirer = require('inquirer');
 var isThere = require('is-there');
 var links = require('../links.js');
+var prettify = require('../pretty').makePretty;
 
 exports.command = 'add <src> <dest>';
 
@@ -27,7 +28,15 @@ function promptForIgnoredFolders(src, rules) {
 		}
 	});
 
+	return new Promise(resolve => {
+		var ignoredFolders = [];
+		rules.forEach((rule) => {
+			ignoredFolders.push(rule.ignore);
+		});
+		resolve(ignoredFolders)
+	})
 	return inquirer.prompt(prompts).then((answers) => {
+		console.log(prompts);
 		var ignoredFolders = [];
 
 		rules.forEach((rule) => {
@@ -36,39 +45,43 @@ function promptForIgnoredFolders(src, rules) {
 			}
 		});
 
+		console.log(ignoredFolders)
+
 		return ignoredFolders;
 	});
 }
 
 function dedupeArray(array) {
-    var arr = array.concat();
+	var arr = array.concat();
 
-    for (var i = 0; i < arr.length; i++) {
-        for(var j = i + 1; j < arr.length; j++) {
-            if (arr[i] === arr[j]) {
-                arr.splice(j--, 1);
-            }
-        }
-    }
+	for (var i = 0; i < arr.length; i++) {
+		for (var j = i + 1; j < arr.length; j++) {
+			if (arr[i] === arr[j]) {
+				arr.splice(j--, 1);
+			}
+		}
+	}
 
-    return arr;
+	return arr;
 }
 
 exports.handler = function (argv) {
 	links.load();
-	var i,
-	    src = path.resolve(untildify(argv.src)),
-	    dest = path.resolve(untildify(argv.dest));
+	var i;
+	const link = prettify({
+		src: path.resolve(untildify(argv.src)),
+		dest: path.resolve(untildify(argv.dest))
+	})
 
 	for (i in links.data) {
-		if (links.data[i].src === src &&
-		    links.data[i].dest === dest) {
+		if (links.data[i].src === link.raw.src &&
+			links.data[i].dest === link.raw.dest) {
 			console.log('Error: link already exists');
 			return;
 		}
 	}
 
-	promptForIgnoredFolders(src, [{
+	promptForIgnoredFolders(link.raw.src, [{
 		name: 'git',
 		relPath: '.git',
 		ignore: '.git',
@@ -81,7 +94,7 @@ exports.handler = function (argv) {
 		message: 'Source folder is an npm package, add `node_modules` to ignored folders?',
 		default: true
 	}]).then((ignoredFolders) => {
-		var watchmanConfigPath = path.resolve(src, '.watchmanconfig');
+		var watchmanConfigPath = path.resolve(link.raw.src, '.watchmanconfig');
 
 		var watchmanConfig = (() => {
 			try {
@@ -102,13 +115,13 @@ exports.handler = function (argv) {
 		while (links.data[i]) i++;
 
 		links.data[i] = {
-			src: src,
-			dest: dest,
+			src: link.raw.src,
+			dest: link.raw.dest,
 			enabled: true,
 			createdTime: new Date()
 		};
 
 		links.save();
-		console.log(`Added link: (${i}) ${src} -> ${dest}`);
+		console.log(`Added link: (${i}) ${link.src} -> ${link.dest}`);
 	});
 }
